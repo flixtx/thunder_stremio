@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html style="background-image: url(https://raw.githubusercontent.com/zoreu/xtreampro/refs/heads/main/bgwallpaper.jpg);">
+<head>
+    <meta charset="utf-8">
+    <title>{{ title }}</title>
+    <link rel="shortcut icon" href="{{ logo }}" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css?family=Ubuntu:400,600,700&display=swap" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body, html {
+            margin: 0;
+            background-size: cover;
+            background-position: center center;
+            background-repeat: repeat-y;
+        }
+        body {
+            display: flex;
+            background-color: transparent;
+            font-family: 'Ubuntu', Arial, sans-serif;
+            color: white;
+        }
+        h1 { font-size: 4.5vh; font-weight: 700; }
+        h2 { font-size: 2.2vh; font-weight: normal; font-style: italic; opacity: 0.8; }
+        h3 { font-size: 2.2vh; }
+        h1, h2, h3, p, label {
+            margin: 0;
+            text-shadow: 0 0 1vh rgba(0, 0, 0, 0.15);
+        }
+        p { font-size: 1.60vh; }
+        ul { font-size: 1.75vh; margin: 0; margin-top: 1vh; padding-left: 3vh; }
+        a { color: lightblue; }
+        a.install-link { text-decoration: none; }
+        button {
+            border: 0;
+            outline: 0;
+            color: white;
+            background: #8A5AAB;
+            padding: 1.2vh 3.5vh;
+            margin: auto;
+            text-align: center;
+            font-family: 'Ubuntu', Arial, sans-serif;
+            font-size: 2.2vh;
+            font-weight: 600;
+            cursor: pointer;
+            display: block;
+            box-shadow: 0 0.5vh 1vh rgba(0, 0, 0, 0.2);
+            transition: box-shadow 0.1s ease-in-out;
+        }
+        button:hover { box-shadow: none; }
+        button:active { box-shadow: 0 0 0 0.5vh white inset; }
+        #addon {
+            width: 150vh;
+            margin: auto;
+            padding-left: 10%;
+            padding-right: 10%;
+            background: rgba(0, 0, 0, 0.60);
+            padding-top: 5%;
+            padding-bottom: 5%;
+        }
+        .logo { height: 14vh; width: 14vh; margin: auto; margin-bottom: 3vh; }
+        .logo img { width: 100%; }
+        .name, .version { display: inline-block; vertical-align: top; }
+        .name { line-height: 5vh; }
+        .version { position: absolute; line-height: 5vh; margin-left: 1vh; opacity: 0.8; }
+        .contact { position: absolute; left: 0; bottom: 4vh; width: 100%; text-align: center; }
+        .contact a { font-size: 1.4vh; font-style: italic; }
+        .separator { margin-bottom: 4vh; }
+        .label { font-size: 2.2vh; font-weight: 600; padding: 0; line-height: inherit; }
+        .input {
+            height: 4.5vh;
+            width: 100%;
+            margin: auto;
+            margin-bottom: 10px;
+            padding: 6px 12px;
+            border-radius: 0;
+            outline: 0;
+            color: #333;
+            background-color: rgb(255, 255, 255);
+            box-shadow: 0 0.5vh 1vh rgba(0, 0, 0, 0.2);
+            border: 0.5vh solid #8a5aab;
+        }
+    </style>
+</head>
+<body>
+    <div id="addon">
+        <div class="logo">
+            <img src="{{ logo }}">
+        </div>
+        <h1 class="name">{{ title }}</h1>
+        <h2 class="version">{{ version }}</h2>
+        <h2 class="description">{{ description }}</h2>
+        <div class="separator"></div>
+        
+        <h3 class="gives">This addon has more:</h3>
+        <ul>
+            <li>Movies</li><li>Series</li><li>Tv</li>
+        </ul>
+        <div class="separator"></div>
+
+        <label class="label" for="serverSelect">Select Server:</label>
+        <select id="serverSelect" class="input" onchange="generateInstallLink()">
+            {% for i in range(1, totalservers + 1) %}
+                <option value="{{ i }}">Server {{ i }}</option>
+            {% endfor %}
+        </select>
+        <div class="separator"></div>
+        
+        <a id="installLink" class="install-link" href="#">
+            <button onclick="generateInstallLink()" name="Install">INSTALL</button>
+        </a>
+        <div class="separator"></div>
+        
+        <div id="installLinkInfo">
+            <p>ℹ️ If the install button doesn't work, simply paste the generated URL into the Stremio add-on search bar: <a href="https://user-images.githubusercontent.com/1777923/43146711-65a33ccc-8f6a-11e8-978e-4c69640e63e3.png" target="_blank">(Tutorial)</a><br>
+            <input type="text" class="input" id="installURL" readonly><button onclick="generateInstallLink(); copy('installURL'); return false;" title="Copy to clipboard">📋</button></p>
+        </div>
+        <div class="separator"></div>
+    </div>
+    <script type="text/javascript">
+        $(document).ready(function() {
+            // Chama a função para gerar o link ao carregar a página, usando o primeiro servidor como padrão
+            generateInstallLink();
+        });
+
+        function copy(id) {
+            document.getElementById(id).select();
+            document.execCommand("copy");
+        }
+
+        function generateInstallLink() {
+            // Obter o número do servidor selecionado
+            var server = $('#serverSelect').val();
+            // Gerar o link Stremio
+            var installLinkUrl = 'stremio://' + window.location.host + '/server/' + server + '/manifest.json';
+            $('#installLink').attr('href', installLinkUrl);
+            // Definir o campo de texto com a versão HTTP do link
+            $('#installURL').val(window.location.protocol + "//" + window.location.host + "/server/" + server + "/manifest.json");
+        }
+    </script>
+    <script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"rayId":"8fe01820df037263","serverTiming":{"name":{"cfExtPri":true,"cfL4":true,"cfSpeedBrain":true,"cfCacheStatus":true}},"version":"2024.10.5","token":"9f61375ea9b64f9b8f3f8c1e6eaa66ce"}' crossorigin="anonymous"></script>
+</body>
+</html>
