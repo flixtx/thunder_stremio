@@ -1,0 +1,428 @@
+import json
+import base64
+import requests
+from urllib.parse import urlparse, urlencode, parse_qs
+from config import config
+import requests
+import servers
+
+def fix_b64(b64str):
+    if not '=' in b64str:
+        b64str += "=" * (-len(b64str) % 4)
+    return b64str
+
+def encode_b64(dict):
+    json_string = json.dumps(dict)
+    string_b64 = json_string.encode('utf-8')
+    hash_b64 = base64.b64encode(string_b64).decode('utf-8')
+    return hash_b64
+
+
+def decode_b64(b64):
+    b64 = fix_b64(b64)
+    return json.loads(base64.b64decode(b64).decode('utf-8'))
+
+def get_image_url(image_url):
+    """Concatena a URL base com a URL da imagem."""
+    base_url = 'https://da5f663b4690-proxyimage.baby-beamup.club/proxy-image/?url='
+    image_url = base_url + image_url
+    return image_url
+
+def get_user_data(user_conf):
+    """Decodifica e processa os dados do usuário."""
+    try:
+        retrieved_data = servers.select_server(int(user_conf) - 1)
+    except Exception as e:
+        print(f"Error: {e}")
+        return "Error while parsing URL"
+
+    obj = {}
+    if isinstance(retrieved_data, dict):
+        domain_name = urlparse(retrieved_data.get('BaseURL', '')).hostname or "unknown"
+        base_url = retrieved_data.get('BaseURL', '')
+        id_prefix = (
+            domain_name[0]
+            + domain_name[len(domain_name) // 2]
+            + domain_name[-1]
+            + ":"
+        )
+        obj = {
+            'baseURL': base_url,
+            'domainName': domain_name,
+            'idPrefix': id_prefix,
+            'username': retrieved_data.get('username'),
+            'password': retrieved_data.get('password'),
+        }
+    elif 'http' in user_conf:
+        url = user_conf
+        parsed_url = urlparse(url)
+        query_string = parsed_url.query or "unknown"
+        base_url = f"{parsed_url.scheme}://{parsed_url.hostname}" or "unknown"
+        domain_name = parsed_url.hostname or "unknown"
+        id_prefix = (
+            domain_name[0]
+            + domain_name[len(domain_name) // 2]
+            + domain_name[-1]
+            + ":"
+        )
+        if not query_string or not base_url:
+            return {'result': "URL is invalid or missing queries!"}
+
+        query_params = parse_qs(query_string)
+        obj = {
+            'baseURL': base_url,
+            'domainName': domain_name,
+            'idPrefix': id_prefix,
+            **query_params,
+        }
+
+    if all(key in obj for key in ['username', 'password', 'baseURL']):
+        return obj
+
+    print("Error while parsing!")
+    return {}
+
+def make_curl_request(url, params=None):
+    """Faz uma requisição HTTP usando a biblioteca requests."""
+    if params is None:
+        params = {}
+    query_string = urlencode(params)
+    final_url = f"{url}?{query_string}" if query_string else url
+
+    try:
+        response = requests.get(
+            final_url,
+            timeout=20,
+            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36'}
+        )
+        return response.text, response.status_code
+    except requests.RequestException as e:
+        print(f"cURL Error: {e}")
+        return None, 0
+
+def get_manifest(user_conf):
+    """Gera o manifesto do addon."""
+    obj = get_user_data(user_conf)
+    if not obj:
+        return {'error': "Invalid user data"}
+
+    # Fetch VOD Categories
+    vod_response, vod_status = make_curl_request(f"{obj['baseURL']}/player_api.php", {
+        'username': obj['username'],
+        'password': obj['password'],
+        'action': 'get_vod_categories',
+    })
+    vod_categories = json.loads(vod_response) if vod_status == 200 else []
+    movie_catalog = [cat['category_name'] for cat in vod_categories if isinstance(vod_categories, list)]
+
+    # Fetch Series Categories
+    series_response, series_status = make_curl_request(f"{obj['baseURL']}/player_api.php", {
+        'username': obj['username'],
+        'password': obj['password'],
+        'action': 'get_series_categories',
+    })
+    series_categories = json.loads(series_response) if series_status == 200 else []
+    series_catalog = [cat['category_name'] for cat in series_categories if isinstance(series_categories, list)]
+
+    # Fetch Live Categories
+    live_response, live_status = make_curl_request(f"{obj['baseURL']}/player_api.php", {
+        'username': obj['username'],
+        'password': obj['password'],
+        'action': 'get_live_categories',
+    })
+    live_categories = json.loads(live_response) if live_status == 200 else []
+    live_catalog = [cat['category_name'] for cat in live_categories if isinstance(live_categories, list)]
+
+    # manifest = {
+    #     'id': f"org.community.{obj['domainName']}" or "org.community.xtreampro",
+    #     'version': config['version'],
+    #     'name': f"{obj['domainName']} | {config['title']}",
+    #     'logo': config['logo'],
+    #     'description': f"access {obj['domainName']} IPTV with this addon!",
+    #     'idPrefixes': [obj['idPrefix']],
+    #     'catalogs': [
+    #         {
+    #             'id': f"{obj['idPrefix']}movie",
+    #             'name': obj['domainName'] or "Movies",
+    #             'type': "movie",
+    #             'extra': [{'name': "genre", 'options': movie_catalog, 'isRequired': True}],
+    #         },
+    #         {
+    #             'id': f"{obj['idPrefix']}series",
+    #             'name': obj['domainName'] or "Series",
+    #             'type': "series",
+    #             'extra': [{'name': "genre", 'options': series_catalog, 'isRequired': True}],
+    #         },
+    #         {
+    #             'id': f"{obj['idPrefix']}tv",
+    #             'name': obj['domainName'] or "Live TV",
+    #             'type': "tv",
+    #             'extra': [{'name': "genre", 'options': live_catalog, 'isRequired': True}],
+    #         }
+    #     ],
+    #     'resources': ["catalog", "meta", "stream"],
+    #     'types': ["movie", "series", "tv"],
+    #     'behaviorHints': {'configurable': True, 'configurationRequired': False},
+    # }
+
+    manifest = {
+        'id': f"org.community.thunder_server{user_conf}" or "org.community.thunder.stremio",
+        'version': config['version'],
+        'name': f"{config['title']} | Server - {user_conf}",
+        'logo': config['logo'],
+        'description': f"access IPTV with this addon!",
+        'idPrefixes': ['thunder:'],
+        'catalogs': [
+            {
+                'id': f"thunder:movie",
+                'name': 'Thunder',
+                'type': "movie",
+                'extra': [{'name': "genre", 'options': movie_catalog, 'isRequired': True}],
+            },
+            {
+                'id': f"thunder:series",
+                'name': 'Thunder',
+                'type': "series",
+                'extra': [{'name': "genre", 'options': series_catalog, 'isRequired': True}],
+            },
+            {
+                'id': f"thunder:tv",
+                'name': 'Thunder',
+                'type': "tv",
+                'extra': [{'name': "genre", 'options': live_catalog, 'isRequired': True}],
+            }
+        ],
+        'resources': ["catalog", "meta", "stream"],
+        'types': ["movie", "series", "tv"],
+        'behaviorHints': {'configurable': True, 'configurationRequired': False},
+    }    
+
+    return manifest
+
+def get_catalog(url, type, genre):
+    """Obtém o catálogo com base no tipo e gênero."""
+    obj = get_user_data(url)
+    if not obj:
+        return []
+
+    # Determinar ação para obter categorias
+    category_action = "get_vod_categories" if type == "movie" else (
+        "get_series_categories" if type == "series" else "get_live_categories"
+    )
+
+    # Buscar ID da categoria
+    category_response, category_status = make_curl_request(f"{obj['baseURL']}/player_api.php", {
+        'username': obj['username'],
+        'password': obj['password'],
+        'action': category_action,
+    })
+    categories = json.loads(category_response) if category_status == 200 else []
+    category_id = next((cat['category_id'] for cat in categories if cat['category_name'] == genre), None)
+
+    if not category_id:
+        return []
+
+    # Determinar ação para obter streams
+    stream_action = "get_vod_streams" if type == "movie" else (
+        "get_series" if type == "series" else "get_live_streams"
+    )
+
+    catalog_response, catalog_status = make_curl_request(f"{obj['baseURL']}/player_api.php", {
+        'username': obj['username'],
+        'password': obj['password'],
+        'action': stream_action,
+        'category_id': category_id,
+    })
+    catalog_data = json.loads(catalog_response) if catalog_status == 200 else []
+    metas = []
+
+    for item in catalog_data:
+        id_ = item['series_id'] if type == "series" else item['stream_id']
+        name = item.get('name', "")
+        poster = item['cover'] if type == "series" else item.get('stream_icon', "")
+        poster_shape = "square" if type == "tv" else "poster"
+
+        metas.append({
+            'id': f"thunder:{id_}",
+            'type': type,
+            'name': name,
+            'poster': get_image_url(poster) or "",
+            'posterShape': poster_shape,
+            'imdbRating': item.get('rating', 0.0),
+            'description': item.get('plot', ''),
+            'genres': [item.get('genre')] if item.get('genre') else []
+        })
+
+    return metas
+
+def get_meta(url, type, id):
+    """Obtém metadados com base no tipo e ID."""
+    obj = get_user_data(url)
+    if not obj:
+        return []
+
+    stream_id = id.split(":")[1]
+
+    # Determinar ação e parâmetros para buscar metadados
+    meta_action = "get_vod_info" if type == "movie" else (
+        "get_series_info" if type == "series" else "get_live_streams"
+    )
+    request_id = "vod_id" if type == "movie" else (
+        "series_id" if type == "series" else "stream_id"
+    )
+
+    params = {
+        'username': obj['username'],
+        'password': obj['password'],
+        'action': meta_action,
+    }
+    if type != "tv":
+        params[request_id] = stream_id
+
+    meta_response, meta_status = make_curl_request(f"{obj['baseURL']}/player_api.php", params)
+    meta_data = json.loads(meta_response) if meta_status == 200 else []
+
+    if not meta_data:
+        return {}
+
+    # Construir resposta com metadados e streams
+    if type == "movie":
+        return {
+            'id': f"thunder:{stream_id}",
+            'type': type,
+            'name': meta_data['info'].get('name', ""),
+            'poster': get_image_url(meta_data['info'].get('cover_big', "")),
+            'background': get_image_url(meta_data['info'].get('backdrop_path', [""])[0]),
+            'description': meta_data['info'].get('description', ""),
+            'releaseInfo': meta_data['info'].get('releasedate', "").split("-")[0]
+        }        
+    elif type == "series":
+        try:
+            year = int(meta_data['info'].get('releaseDate', "").split("-")[0])
+        except:
+            year = 0
+        try:
+            imdb_rating = float(meta_data['info'].get('rating', ""))
+        except:
+            imdb_rating = 0.0
+        meta = {
+            'id': f"thunder:{stream_id}",
+            'type': type,
+            'name': meta_data['info'].get('name', ""),
+            'year': year, 
+            'imdbRating': imdb_rating,                       
+            'poster': meta_data['info'].get('backdrop_path', [""])[0],
+            'logo': meta_data['info'].get('backdrop_path', [""])[0],
+            'background': meta_data['info'].get('backdrop_path', [""])[0],
+            'genres': ['Séries'],
+            'trailers': [],
+            'description': meta_data['info'].get('plot', ""),
+            'videos': []
+        }
+
+        # Processar episódios
+        for season, episodes in meta_data.get('episodes', {}).items():
+            for episode in episodes: 
+                # meta['videos'].append({
+                #     'id': f"thunder:{stream_id}:{episode.get('season')}:{episode.get('episode_num')}",
+                #     'name': episode.get('title', f"Episode {episode.get('episode_num', '')}"),
+                #     'season': episode.get('season'),
+                #     'number': episode.get('episode_num'),
+                #     'episode': episode.get('episode_num'),
+                #     'thumbnail': get_image_url(episode.get('info', {}).get('movie_image', "")),
+                #     'released': episode.get('info', {}).get('releasedate', "")
+                # }) 
+                meta['videos'].append({
+                    'id': f"thunder:{stream_id}:{episode.get('season')}:{episode.get('episode_num')}",
+                    'name': episode.get('title', f"Episode {episode.get('episode_num', '')}"),
+                    'season': episode.get('season'),
+                    'number': episode.get('episode_num'),
+                    'episode': episode.get('episode_num'),
+                    'thumbnail': get_image_url(episode.get('info', {}).get('movie_image', ""))
+                })                                   
+
+        return meta
+    elif type == "tv":
+        for item in meta_data:
+            if int(item['stream_id']) == int(stream_id):
+                return {
+                    'id': f"thunder:{item['stream_id']}",
+                    'name': item.get('name', ""),
+                    'type': type,
+                    'background': "https://raw.githubusercontent.com/zoreu/xtreampro/refs/heads/main/bgwallpaper.jpg",
+                    'poster': get_image_url(item.get('stream_icon', "")),
+                    'logo': get_image_url(item.get('stream_icon', ""))
+                }
+
+    return {}
+
+def get_stream(url, type, id):
+    """Obtém metadados com base no tipo e ID."""
+    obj = get_user_data(url)
+    if not obj:
+        return []
+
+    if id.count(':') == 3:
+        stream_id = id.split(':')[1]
+        #stream_id = id.split(':')[2]
+        season = id.split(':')[2]
+        episode = id.split(':')[3]
+    elif id.count(':') == 1:
+        stream_id = id.split(':')[1]
+    else:
+        return {'streams': []}
+
+    # Determinar ação e parâmetros para buscar metadados
+    meta_action = "get_vod_info" if type == "movie" else (
+        "get_series_info" if type == "series" else "get_live_streams"
+    )
+    request_id = "vod_id" if type == "movie" else (
+        "series_id" if type == "series" else "stream_id"
+    )
+
+    params = {
+        'username': obj['username'],
+        'password': obj['password'],
+        'action': meta_action,
+    }
+    if type != "tv":
+        params[request_id] = stream_id
+
+    meta_response, meta_status = make_curl_request(f"{obj['baseURL']}/player_api.php", params)
+    meta_data = json.loads(meta_response) if meta_status == 200 else []
+
+    if not meta_data:
+        return {'streams': []}
+
+    # Construir resposta com metadados e streams
+    if type == "movie":
+        return {
+            'streams': [{
+                'name': 'Thunder',
+                'title': meta_data['info'].get('name', "Stream"),
+                'url': f"https://zoreu-proxy.hf.space/proxy/stream?d={obj['baseURL']}/movie/{obj['username']}/{obj['password']}/{stream_id}.mp4&api_password=abracadabra",
+            }],
+        }
+    elif type == "series":
+        for season_, episodes in meta_data.get('episodes', {}).items():
+            for episode_ in episodes:
+                if int(episode_.get('season')) == int(season) and int(episode_.get('episode_num')) == int(episode):
+                    return {
+                        'streams': [{
+                            'name': 'Thunder',
+                            'title': episode_.get('title', f"Episode {episode_.get('episode_num', '')}"),
+                            'url': f"https://zoreu-proxy.hf.space/proxy/stream?d={obj['baseURL']}/series/{obj['username']}/{obj['password']}/{episode_['id']}.mp4&api_password=abracadabra",
+                        }],
+                    }      
+    elif type == "tv":
+        for item in meta_data:
+            if int(item['stream_id']) == int(stream_id):
+                return {
+                    'streams': [{
+                        'name': 'Thunder',
+                        'title': item.get('name', "Live Channel"),
+                        'url': f"https://zoreu-proxy.hf.space/proxy/hls/manifest.m3u8?d={obj['baseURL']}/live/{obj['username']}/{obj['password']}/{item['stream_id']}.m3u8&api_password=abracadabra",
+                    }],
+                }
+
+    return {'streams': []}
