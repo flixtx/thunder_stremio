@@ -400,7 +400,7 @@ def get_stream(url, type, id):
             'streams': [{
                 'name': 'Thunder',
                 'title': meta_data['info'].get('name', "Stream"),
-                'url': f"https://bsweb1-stremiopx.hf.space/proxy/stream?d={obj['baseURL']}/movie/{obj['username']}/{obj['password']}/{stream_id}.mp4&api_password=abracadabra",
+                'url': f"https://bsweb1-stremiopx.hf.space/proxy/stream?d={obj['baseURL']}/movie/{obj['username']}/{obj['password']}/{stream_id}.mp4&api_password=04502456",
             }],
         }
     elif type == "series":
@@ -411,7 +411,7 @@ def get_stream(url, type, id):
                         'streams': [{
                             'name': 'Thunder',
                             'title': episode_.get('title', f"Episode {episode_.get('episode_num', '')}"),
-                            'url': f"https://bsweb1-stremiopx.hf.space/proxy/stream?d={obj['baseURL']}/series/{obj['username']}/{obj['password']}/{episode_['id']}.mp4&api_password=abracadabra",
+                            'url': f"https://bsweb1-stremiopx.hf.space/proxy/stream?d={obj['baseURL']}/series/{obj['username']}/{obj['password']}/{episode_['id']}.mp4&api_password=04502456",
                         }],
                     }      
     elif type == "tv":
@@ -421,7 +421,7 @@ def get_stream(url, type, id):
                     'streams': [{
                         'name': 'Thunder',
                         'title': item.get('name', "Live Channel"),
-                        'url': f"https://bsweb1-stremiopx.hf.space/proxy/hls/manifest.m3u8?d={obj['baseURL']}/live/{obj['username']}/{obj['password']}/{item['stream_id']}.m3u8&api_password=abracadabra",
+                        'url': f"https://bsweb1-stremiopx.hf.space/proxy/hls/manifest.m3u8?d={obj['baseURL']}/live/{obj['username']}/{obj['password']}/{item['stream_id']}.m3u8&api_password=04502456",
                     }],
                 }
 
