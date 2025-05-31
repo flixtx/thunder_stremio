@@ -5,11 +5,19 @@ from urllib.parse import urlparse, urlencode, parse_qs
 from config import config
 import requests
 import servers
+import unicodedata
 
 def fix_b64(b64str):
     if not '=' in b64str:
         b64str += "=" * (-len(b64str) % 4)
     return b64str
+
+def remove_accents(text):
+    """Remove acentos de uma string."""
+    return ''.join(
+        c for c in unicodedata.normalize('NFD', text)
+        if unicodedata.category(c) != 'Mn'
+    )
 
 def encode_b64(dict):
     json_string = json.dumps(dict)
@@ -25,7 +33,12 @@ def decode_b64(b64):
 def get_image_url(image_url):
     """Concatena a URL base com a URL da imagem."""
     base_url = 'https://da5f663b4690-proxyimage.baby-beamup.club/proxy-image/?url='
-    image_url = base_url + image_url
+    if image_url:
+        image_url = str(image_url).strip()
+    else:
+        image_url = ''
+    if image_url:
+        image_url = base_url + image_url
     return image_url
 
 def get_user_data(user_conf):
@@ -177,19 +190,19 @@ def get_manifest(user_conf):
                 'id': f"thunder:movie",
                 'name': 'Thunder',
                 'type': "movie",
-                'extra': [{'name': "genre", 'options': movie_catalog, 'isRequired': True}],
+                'extra': [{'name': "genre", 'options': movie_catalog, 'isRequired': False}, {"name": "search", "isRequired": False}],
             },
             {
                 'id': f"thunder:series",
                 'name': 'Thunder',
                 'type': "series",
-                'extra': [{'name': "genre", 'options': series_catalog, 'isRequired': True}],
+                'extra': [{'name': "genre", 'options': series_catalog, 'isRequired': False}, {"name": "search", "isRequired": False}],
             },
             {
                 'id': f"thunder:tv",
                 'name': 'Thunder',
                 'type': "tv",
-                'extra': [{'name': "genre", 'options': live_catalog, 'isRequired': True}],
+                'extra': [{'name': "genre", 'options': live_catalog, 'isRequired': False}, {"name": "search", "isRequired": False}],
             }
         ],
         'resources': ["catalog", "meta", "stream"],
@@ -198,6 +211,121 @@ def get_manifest(user_conf):
     }    
 
     return manifest
+
+def search_catalog(url, type, query):
+    """Realiza uma busca no catálogo com base no tipo e no termo de pesquisa."""
+    obj = get_user_data(url)
+    if not obj:
+        return []
+
+    # Determinar ação para obter streams
+    stream_action = "get_vod_streams" if type == "movie" else (
+        "get_series" if type == "series" else "get_live_streams"
+    )
+
+    # Fazer a requisição para obter todos os itens do tipo especificado
+    catalog_response, catalog_status = make_curl_request(f"{obj['baseURL']}/player_api.php", {
+        'username': obj['username'],
+        'password': obj['password'],
+        'action': stream_action,
+    })
+    catalog_data = json.loads(catalog_response) if catalog_status == 200 else []
+    metas = []
+
+    #prefix = fix_prefix(obj['idPrefix'])
+
+    # Filtrar itens com base no termo de busca (case-insensitive)
+    query = query.lower()
+    for item in catalog_data:
+        name = item.get('name', "").lower()
+        name_no_accents = remove_accents(name)
+        query_no_accents = remove_accents(query.lower())
+        name3 = name_no_accents.replace('&', 'e').replace(' ', '').replace('-', '').replace('_', '')
+        query3 = query_no_accents.replace('&', 'e').replace(' ', '').replace('-', '').replace('_', '')
+        if query in name or query_no_accents in name_no_accents or query3 in name3:
+            id_ = item['series_id'] if type == "series" else item['stream_id']
+            poster = item['cover'] if type == "series" else item.get('stream_icon', "")
+            poster_shape = "square" if type == "tv" else "poster"
+
+            metas.append({
+                'id': f"thunder:{id_}",
+                'type': type,
+                'name': item.get('name', ""),
+                'poster': get_image_url(poster) or "",
+                'posterShape': poster_shape,
+                'imdbRating': item.get('rating', 0.0),
+                'year': item.get('year', 0),
+                'genres': [item.get('genre', '')],
+                'description': item.get('plot', "")
+            })
+
+    return metas
+
+def get_catalog_global(url, type):
+    """Obtém o catálogo completo com base no tipo (movie, series, tv), pegando a primeira categoria disponível."""
+    obj = get_user_data(url)
+    if not obj:
+        return []
+
+    # Ação de categoria e de stream
+    category_action = (
+        "get_vod_categories" if type == "movie" else
+        "get_series_categories" if type == "series" else
+        "get_live_categories"
+    )
+    stream_action = (
+        "get_vod_streams" if type == "movie" else
+        "get_series" if type == "series" else
+        "get_live_streams"
+    )
+
+    # Buscar categorias
+    category_response, category_status = make_curl_request(f"{obj['baseURL']}/player_api.php", {
+        'username': obj['username'],
+        'password': obj['password'],
+        'action': category_action,
+    })
+    categories = json.loads(category_response) if category_status == 200 else []
+
+    # Seleciona a primeira categoria disponível
+    category_id = None
+    if isinstance(categories, list) and categories:
+        category_id = categories[0].get('category_id')
+
+    if not category_id:
+        return []
+
+    # Buscar conteúdo da categoria
+    catalog_response, catalog_status = make_curl_request(f"{obj['baseURL']}/player_api.php", {
+        'username': obj['username'],
+        'password': obj['password'],
+        'action': stream_action,
+        'category_id': category_id,
+    })
+    catalog_data = json.loads(catalog_response) if catalog_status == 200 else []
+    metas = []
+
+    #prefix = fix_prefix(obj['idPrefix'])
+
+    for item in catalog_data:
+        id_ = item['series_id'] if type == "series" else item['stream_id']
+        name = item.get('name', "")
+        poster = item['cover'] if type == "series" else item.get('stream_icon', "")
+        poster_shape = "square" if type == "tv" else "poster"
+
+        metas.append({
+            'id': f"thunder:{id_}",
+            'type': type,
+            'name': name,
+            'poster': get_image_url(poster) or "",
+            'posterShape': poster_shape,
+            'imdbRating': item.get('rating', 0.0),
+            'year': item.get('year', 0),
+            'genres': [item.get('genre', '')],
+            'description': item.get('plot', "")
+        })
+
+    return metas
 
 def get_catalog(url, type, genre):
     """Obtém o catálogo com base no tipo e gênero."""
