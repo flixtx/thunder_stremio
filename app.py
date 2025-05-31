@@ -5,7 +5,7 @@ from jinja2 import Environment, FileSystemLoader
 from config import config
 import requests
 import base64
-from functions import get_manifest, get_catalog, get_meta, get_stream, fix_b64
+from functions import get_manifest, get_catalog, get_meta, get_stream, fix_b64, search_catalog, get_catalog_global
 import sys
 import servers
 
@@ -75,9 +75,19 @@ async def manifest_custom(serverstr: str, request: Request):
     manifest = get_manifest(serverstr)
     return add_cors(JSONResponse(content=manifest))
 
+@app.get("/server/{serverstr}/catalog/{type}/{id}/search={query}.json")
+async def search_funcion(serverstr: str, type: str, id: str, query: str, request: Request):   
+    results = search_catalog(serverstr, type, query)
+    return add_cors(JSONResponse(content={"metas": results}))
+
 @app.get("/server/{serverstr}/catalog/{type}/{id_prefix}/genre={genre}.json")
 async def catalog_genre(serverstr: str, type: str, genre: str, request: Request):
     catalog = get_catalog(serverstr, type, genre)
+    return add_cors(JSONResponse(content={"metas": catalog}))
+
+@app.get("/server/{serverstr}/catalog/{type}/{id}.json")
+async def catalog_global(serverstr: str, type: str, id: str, request: Request):  
+    catalog = get_catalog_global(serverstr, type)
     return add_cors(JSONResponse(content={"metas": catalog}))
 
 @app.get("/server/{serverstr}/meta/{type}/{id}.json")
