@@ -524,33 +524,54 @@ def get_stream(url, type, id):
 
     # Construir resposta com metadados e streams
     if type == "movie":
+        # return {
+        #     'streams': [{
+        #         'name': 'Thunder',
+        #         'title': meta_data['info'].get('name', "Stream"),
+        #         'url': f"https://zoreu-proxy.hf.space/proxy/stream?d={obj['baseURL']}/movie/{obj['username']}/{obj['password']}/{stream_id}.mp4&api_password=abracadabra",
+        #     }],
+        # }
         return {
             'streams': [{
                 'name': 'Thunder',
                 'title': meta_data['info'].get('name', "Stream"),
-                'url': f"https://zoreu-proxy.hf.space/proxy/stream?d={obj['baseURL']}/movie/{obj['username']}/{obj['password']}/{stream_id}.mp4&api_password=abracadabra",
+                'url': f"https://zoreu-f4mtesterweb.hf.space/proxy?url={obj['baseURL']}/movie/{obj['username']}/{obj['password']}/{stream_id}.mp4",
             }],
-        }
+        }        
     elif type == "series":
         for season_, episodes in meta_data.get('episodes', {}).items():
             for episode_ in episodes:
                 if int(episode_.get('season')) == int(season) and int(episode_.get('episode_num')) == int(episode):
+                    # return {
+                    #     'streams': [{
+                    #         'name': 'Thunder',
+                    #         'title': episode_.get('title', f"Episode {episode_.get('episode_num', '')}"),
+                    #         'url': f"https://zoreu-proxy.hf.space/proxy/stream?d={obj['baseURL']}/series/{obj['username']}/{obj['password']}/{episode_['id']}.mp4&api_password=abracadabra",
+                    #     }],
+                    # }  
                     return {
                         'streams': [{
                             'name': 'Thunder',
                             'title': episode_.get('title', f"Episode {episode_.get('episode_num', '')}"),
-                            'url': f"https://zoreu-proxy.hf.space/proxy/stream?d={obj['baseURL']}/series/{obj['username']}/{obj['password']}/{episode_['id']}.mp4&api_password=abracadabra",
+                            'url': f"https://zoreu-f4mtesterweb.hf.space/proxy?url={obj['baseURL']}/series/{obj['username']}/{obj['password']}/{episode_['id']}.mp4",
                         }],
-                    }      
+                    }                         
     elif type == "tv":
         for item in meta_data:
             if int(item['stream_id']) == int(stream_id):
+                # return {
+                #     'streams': [{
+                #         'name': 'Thunder',
+                #         'title': item.get('name', "Live Channel"),
+                #         'url': f"https://zoreu-proxy.hf.space/proxy/hls/manifest.m3u8?d={obj['baseURL']}/live/{obj['username']}/{obj['password']}/{item['stream_id']}.m3u8&api_password=abracadabra",
+                #     }],
+                # }
                 return {
                     'streams': [{
                         'name': 'Thunder',
                         'title': item.get('name', "Live Channel"),
-                        'url': f"https://zoreu-proxy.hf.space/proxy/hls/manifest.m3u8?d={obj['baseURL']}/live/{obj['username']}/{obj['password']}/{item['stream_id']}.m3u8&api_password=abracadabra",
+                        'url': f"https://zoreu-f4mtesterweb.hf.space/proxy?url={obj['baseURL']}/live/{obj['username']}/{obj['password']}/{item['stream_id']}.m3u8",
                     }],
-                }
+                }                
 
     return {'streams': []}
