@@ -1,7 +1,7 @@
 import requests
 from urllib.parse import urlparse, parse_qs
 
-api = 'https://kim.nl.tab.digital/s/t5fYJ49CZKkfnZa/download/listas.txt\'
+api = 'https://kim.nl.tab.digital/s/t5fYJ49CZKkfnZa/download/listas.txt'
 
 def convert_to_json(url):
     """
