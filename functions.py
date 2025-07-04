@@ -32,7 +32,7 @@ def decode_b64(b64):
 
 def get_image_url(image_url):
     """Concatena a URL base com a URL da imagem."""
-    base_url = 'https://da5f663b4690-proxyimage.baby-beamup.club/proxy-image/?url='
+    base_url = 'https://bsweb1-image-proxy.hf.space/proxy-image/?url='
     if image_url:
         image_url = str(image_url).strip()
     else:
@@ -535,7 +535,7 @@ def get_stream(url, type, id):
             'streams': [{
                 'name': 'Thunder',
                 'title': meta_data['info'].get('name', "Stream"),
-                'url': f"https://bsweb1-f4mtesterweb.hf.space/proxy?url={obj['baseURL']}/movie/{obj['username']}/{obj['password']}/{stream_id}.mp4",
+                'url': f"http://melo.wisp.uno:11793/proxy?url={obj['baseURL']}/movie/{obj['username']}/{obj['password']}/{stream_id}.mp4",
             }],
         }        
     elif type == "series":
@@ -553,7 +553,7 @@ def get_stream(url, type, id):
                         'streams': [{
                             'name': 'Thunder',
                             'title': episode_.get('title', f"Episode {episode_.get('episode_num', '')}"),
-                            'url': f"https://bsweb1-f4mtesterweb.hf.space/proxy?url={obj['baseURL']}/series/{obj['username']}/{obj['password']}/{episode_['id']}.mp4",
+                            'url': f"http://melo.wisp.uno:11793/proxy?url={obj['baseURL']}/series/{obj['username']}/{obj['password']}/{episode_['id']}.mp4",
                         }],
                     }                         
     elif type == "tv":
@@ -570,7 +570,7 @@ def get_stream(url, type, id):
                     'streams': [{
                         'name': 'Thunder',
                         'title': item.get('name', "Live Channel"),
-                        'url': f"https://bsweb1-f4mtesterweb.hf.space/proxy?url={obj['baseURL']}/live/{obj['username']}/{obj['password']}/{item['stream_id']}.m3u8",
+                        'url': f"http://melo.wisp.uno:11793/proxy?url={obj['baseURL']}/live/{obj['username']}/{obj['password']}/{item['stream_id']}.m3u8",
                     }],
                 }                
 
