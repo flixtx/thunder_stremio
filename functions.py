@@ -535,7 +535,7 @@ def get_stream(url, type, id):
             'streams': [{
                 'name': 'Thunder',
                 'title': meta_data['info'].get('name', "Stream"),
-                'url': f"http://melo.wisp.uno:11793/proxy?url={obj['baseURL']}/movie/{obj['username']}/{obj['password']}/{stream_id}.mp4",
+                'url': f"https://bsweb1-f4mtesterweb.hf.space/proxy?url={obj['baseURL']}/movie/{obj['username']}/{obj['password']}/{stream_id}.mp4",
             }],
         }        
     elif type == "series":
@@ -553,7 +553,7 @@ def get_stream(url, type, id):
                         'streams': [{
                             'name': 'Thunder',
                             'title': episode_.get('title', f"Episode {episode_.get('episode_num', '')}"),
-                            'url': f"http://melo.wisp.uno:11793/proxy?url={obj['baseURL']}/series/{obj['username']}/{obj['password']}/{episode_['id']}.mp4",
+                            'url': f"https://bsweb1-f4mtesterweb.hf.space/proxy?url={obj['baseURL']}/series/{obj['username']}/{obj['password']}/{episode_['id']}.mp4",
                         }],
                     }                         
     elif type == "tv":
@@ -570,7 +570,7 @@ def get_stream(url, type, id):
                     'streams': [{
                         'name': 'Thunder',
                         'title': item.get('name', "Live Channel"),
-                        'url': f"http://melo.wisp.uno:11793/proxy?url={obj['baseURL']}/live/{obj['username']}/{obj['password']}/{item['stream_id']}.m3u8",
+                        'url': f"http://strawberry.fps.ms:10378/proxy?url={obj['baseURL']}/live/{obj['username']}/{obj['password']}/{item['stream_id']}.m3u8",
                     }],
                 }                
 
